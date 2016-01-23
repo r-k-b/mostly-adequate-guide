@@ -12,14 +12,14 @@ For some folks, myself included, it's hard to grasp the concept of declarative c
 
 ```js
 // imperative
-var makes = [];
+const makes = [];
 for (i = 0; i < cars.length; i++) {
   makes.push(cars[i].make);
 }
 
 
 // declarative
-var makes = cars.map(function(car){ return car.make; });
+const makes = cars.map(car => car.make);
 ```
 
 The imperative loop must first instantiate the array. The interpreter must evaluate this statement before moving on. Then it directly iterates through the list of cars, manually increasing a counter and showing its bits and pieces to us in a vulgar display of explicit iteration.
@@ -28,19 +28,19 @@ The `map` version is one expression. It does not require any order of evaluation
 
 In addition to being clearer and more concise, the map function may be optimized at will and our precious application code needn't change.
 
-For those of you who are thinking "Yes, but it's much faster to do the imperative loop", I suggest you educate yourself on how the JIT optimizes your code. Here's a [terrific video that may shed some light](https://www.youtube.com/watch?v=65-RbBwZQdU)
+For those of you who are thinking "Yes, but it's much faster to do the imperative loop", I suggest you educate yourself on how the JIT optimizes your code. Here's a [terrific video that may shed some light.](https://www.youtube.com/watch?v=65-RbBwZQdU)
 
 Here is another example.
 
 ```js
 // imperative
-var authenticate = function(form) {
-  var user = toUser(form);
+const authenticate = form => {
+  const user = toUser(form);
   return logIn(user);
 };
 
 // declarative
-var authenticate = compose(logIn, toUser);
+const authenticate = compose(logIn, toUser);
 ```
 
 Though there's nothing necessarily wrong with the imperative version, there is still an encoded step-by-step evaluation baked in. The `compose` expression simply states a fact: Authentication is the composition of `toUser` and `logIn`. Again, this leaves wiggle room for support code changes and results in our application code being a high level specification.
@@ -77,11 +77,12 @@ require([
     'ramda',
     'jquery'
   ],
-  function (_, $) {
-    var trace = _.curry(function(tag, x) {
+  (_, $) => {
+    const trace = _.curry((tag, x) => {
       console.log(tag, x);
       return x;
     });
+    
     // app goes here
   });
 ```
@@ -98,12 +99,12 @@ Now that that's out of the way, on to the spec. Our app will do 4 things.
 There are 2 impure actions mentioned above. Do you see them? Those bits about getting data from the flickr api and placing it on the screen. Let's define those first so we can quarantine them.
 
 ```js
-var Impure = {
-  getJSON: _.curry(function(callback, url) {
+const Impure = {
+  getJSON: _.curry((callback, url) => {
     $.getJSON(url, callback);
   }),
 
-  setHtml: _.curry(function(sel, html) {
+  setHtml: _.curry((sel, html) => {
     $(sel).html(html);
   })
 };
@@ -114,10 +115,8 @@ Here we've simply wrapped jQuery's methods to be curried and we've swapped the a
 Next we must construct a url to pass to our `Impure.getJSON` function.
 
 ```js
-var url = function (term) {
-  return 'https://api.flickr.com/services/feeds/photos_public.gne?tags=' +
+const url = term => 'https://api.flickr.com/services/feeds/photos_public.gne?tags=' +
     term + '&format=json&jsoncallback=?';
-};
 ```
 
 There are fancy and overly complex ways of writing `url` pointfree using monoids(we'll learn about these later) or combinators. We've chosen to stick with a readable version and assemble this string in the normal pointful fashion.
@@ -125,7 +124,7 @@ There are fancy and overly complex ways of writing `url` pointfree using monoids
 Let's write an app function that makes the call and places the contents on the screen.
 
 ```js
-var app = _.compose(Impure.getJSON(trace("response")), url);
+const app = _.compose(Impure.getJSON(trace("response")), url);
 
 app("cats");
 ```
@@ -139,9 +138,7 @@ We'd like to construct images out of this json. It looks like the srcs are burie
 Anyhow, to get at these nested properties we can use a nice universal getter function from ramda called `_.prop()`. Here's a homegrown version so you can see what's happening:
 
 ```js
-var prop = _.curry(function(property, object){
-  return object[property];
-});
+const prop = _.curry((property, object) => object[property]);
 ```
 
 It's quite dull actually. We just use `[]` syntax to access a property on whatever object. Let's use this to get at our srcs.
@@ -155,8 +152,8 @@ var srcs = _.compose(_.map(mediaUrl), _.prop('items'));
 Once we gather the `items`, we must `map` over them to extract each media url. This results in a nice array of srcs. Let's hook this up to our app and print them on the screen.
 
 ```js
-var renderImages = _.compose(Impure.setHtml("body"), srcs);
-var app = _.compose(Impure.getJSON(renderImages), url);
+const renderImages = _.compose(Impure.setHtml("body"), srcs);
+const app = _.compose(Impure.getJSON(renderImages), url);
 ```
 
 All we've done is make a new composition that will call our `srcs` and set the body html with them. We've replaced the `trace` call with `renderImages` now that we have something to render besides raw json. This will crudely display our srcs directly in the body.
@@ -164,17 +161,15 @@ All we've done is make a new composition that will call our `srcs` and set the b
 Our final step is to turn these srcs into bonafide images. In a bigger application, we'd use a template/dom library like Handlebars or React. For this application though, we only need an img tag so let's stick with jQuery.
 
 ```js
-var img = function (url) {
-  return $('<img />', { src: url });
-};
+const img = url => $('<img />', { src: url });
 ```
 
 jQuery's `html()` method will accept an array of tags. We only have to transform our srcs into images and send them along to `setHtml`.
 
 ```js
-var images = _.compose(_.map(img), srcs);
-var renderImages = _.compose(Impure.setHtml("body"), images);
-var app = _.compose(Impure.getJSON(renderImages), url);
+const images = _.compose(_.map(img), srcs);
+const renderImages = _.compose(Impure.setHtml("body"), images);
+const app = _.compose(Impure.getJSON(renderImages), url);
 ```
 
 And we're done!
@@ -194,45 +189,41 @@ require([
     'ramda',
     'jquery'
   ],
-  function (_, $) {
+  (_, $) => {
     ////////////////////////////////////////////
     // Utils
 
-    var Impure = {
-      getJSON: _.curry(function(callback, url) {
+    const Impure = {
+      getJSON: _.curry((callback, url) => {
         $.getJSON(url, callback);
       }),
 
-      setHtml: _.curry(function(sel, html) {
+      setHtml: _.curry((sel, html) => {
         $(sel).html(html);
       })
     };
 
-    var img = function (url) {
-      return $('<img />', { src: url });
-    };
+    const img = url => $('<img />', { src: url });
 
-    var trace = _.curry(function(tag, x) {
+    const trace = _.curry((tag, x) => {
       console.log(tag, x);
       return x;
     });
 
     ////////////////////////////////////////////
 
-    var url = function (t) {
-      return 'http://api.flickr.com/services/feeds/photos_public.gne?tags=' +
+    const url = t => 'http://api.flickr.com/services/feeds/photos_public.gne?tags=' +
         t + '&format=json&jsoncallback=?';
-    };
 
-    var mediaUrl = _.compose(_.prop('m'), _.prop('media'));
+    const mediaUrl = _.compose(_.prop('m'), _.prop('media'));
 
-    var srcs = _.compose(_.map(mediaUrl), _.prop('items'));
+    const srcs = _.compose(_.map(mediaUrl), _.prop('items'));
 
-    var images = _.compose(_.map(img), srcs);
+    const images = _.compose(_.map(img), srcs);
 
-    var renderImages = _.compose(Impure.setHtml("body"), images);
+    const renderImages = _.compose(Impure.setHtml("body"), images);
 
-    var app = _.compose(Impure.getJSON(renderImages), url);
+    const app = _.compose(Impure.getJSON(renderImages), url);
 
     app("cats");
   });
@@ -247,45 +238,45 @@ There is an optimization available - we map over each item to turn it into a med
 
 ```js
 // map's composition law
-var law = compose(map(f), map(g)) == map(compose(f, g));
+const law = compose(map(f), map(g)) == map(compose(f, g));
 ```
 
 We can use this property to optimize our code. Let's have a principled refactor.
 
 ```js
 // original code
-var mediaUrl = _.compose(_.prop('m'), _.prop('media'));
+const mediaUrl = _.compose(_.prop('m'), _.prop('media'));
 
-var srcs = _.compose(_.map(mediaUrl), _.prop('items'));
+const srcs = _.compose(_.map(mediaUrl), _.prop('items'));
 
-var images = _.compose(_.map(img), srcs);
+const images = _.compose(_.map(img), srcs);
 
 ```
 
 Let's line up our maps. We can inline the call to `srcs` in `images` thanks to equational reasoning and purity.
 
 ```js
-var mediaUrl = _.compose(_.prop('m'), _.prop('media'));
+const mediaUrl = _.compose(_.prop('m'), _.prop('media'));
 
-var images = _.compose(_.map(img), _.map(mediaUrl), _.prop('items'));
+const images = _.compose(_.map(img), _.map(mediaUrl), _.prop('items'));
 ```
 
 Now that we've lined up our `map`'s we can apply the composition law.
 
 ```js
-var mediaUrl = _.compose(_.prop('m'), _.prop('media'));
+const mediaUrl = _.compose(_.prop('m'), _.prop('media'));
 
-var images = _.compose(_.map(_.compose(img, mediaUrl)), _.prop('items'));
+const images = _.compose(_.map(_.compose(img, mediaUrl)), _.prop('items'));
 ```
 
 Now the bugger will only loop once while turning each item into an img. Let's just make it a little more readable by extracting the function out.
 
 ```js
-var mediaUrl = _.compose(_.prop('m'), _.prop('media'));
+const mediaUrl = _.compose(_.prop('m'), _.prop('media'));
 
-var mediaToImg = _.compose(img, mediaUrl);
+const mediaToImg = _.compose(img, mediaUrl);
 
-var images = _.compose(_.map(mediaToImg), _.prop('items'));
+const images = _.compose(_.map(mediaToImg), _.prop('items'));
 ```
 
 ## In Summary

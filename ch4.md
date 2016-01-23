@@ -8,14 +8,10 @@ The concept is simple: You can call a function with fewer arguments than it expe
 You can choose to call it all at once or simply feed in each argument piecemeal.
 
 ```js
-var add = function(x) {
-  return function(y) {
-    return x + y;
-  };
-};
+const add = x => y => x + y;
 
-var increment = add(1);
-var addTen = add(10);
+const increment = add(1);
+const addTen = add(10);
 
 increment(2);
 // 3
@@ -29,59 +25,51 @@ Here we've made a function `add` that takes one argument and returns a function.
 Let's set up a few curried functions for our enjoyment.
 
 ```js
-var curry = require('lodash.curry');
+const curry = require('lodash.curry');
 
-var match = curry(function(what, str) {
-  return str.match(what);
-});
+const match = curry((what, str) => str.match(what));
 
-var replace = curry(function(what, replacement, str) {
-  return str.replace(what, replacement);
-});
+const replace = curry((what, replacement, str) => str.replace(what, replacement));
 
-var filter = curry(function(f, ary) {
-  return ary.filter(f);
-});
+const filter = curry((f, ary) => ary.filter(f));
 
-var map = curry(function(f, ary) {
-  return ary.map(f);
-});
+const map = curry((f, ary) => ary.map(f));
 ```
 
 The pattern I've followed is a simple, but important one. I've strategically positioned the data we're operating on (String, Array) as the last argument. It will become clear as to why upon use.
 
 ```js
-match(/\s+/g, "hello world");
+match(/\s+/g, 'hello world');
 // [ ' ' ]
 
-match(/\s+/g)("hello world");
+match(/\s+/g)('hello world');
 // [ ' ' ]
 
-var hasSpaces = match(/\s+/g);
-// function(x) { return x.match(/\s+/g) }
+const hasSpaces = match(/\s+/g);
+// x => x.match(/\s+/g) }
 
-hasSpaces("hello world");
+hasSpaces('hello world');
 // [ ' ' ]
 
-hasSpaces("spaceless");
+hasSpaces('spaceless');
 // null
 
-filter(hasSpaces, ["tori_spelling", "tori amos"]);
-// ["tori amos"]
+filter(hasSpaces, ['tori_spelling', 'tori amos']);
+// ['tori amos']
 
-var findSpaces = filter(hasSpaces);
-// function(xs) { return xs.filter(function(x) { return x.match(/\s+/g) }) }
+const findSpaces = filter(hasSpaces);
+// xs => xs.filter(x => x.match(/\s+/g));
 
-findSpaces(["tori_spelling", "tori amos"]);
-// ["tori amos"]
+findSpaces(['tori_spelling', 'tori amos']);
+// ['tori amos']
 
 var noVowels = replace(/[aeiou]/ig);
-// function(replacement, x) { return x.replace(/[aeiou]/ig, replacement) }
+// (replacement, x) => x.replace(/[aeiou]/ig, replacement)
 
-var censored = noVowels("*");
-// function(x) { return x.replace(/[aeiou]/ig, "*") }
+var censored = noVowels('*');
+// x => x.replace(/[aeiou]/ig, '*')
 
-censored("Chocolate Rain");
+censored('Chocolate Rain');
 // 'Ch*c*l*t* R**n'
 ```
 
@@ -96,19 +84,15 @@ Currying is useful for many things. We can make new functions just by giving our
 We also have the ability to transform any function that works on single elements into a function that works on arrays simply by wrapping it with `map`:
 
 ```js
-var getChildren = function(x) {
-  return x.childNodes;
-};
+const getChildren = x => x.childNodes;
 
-var allTheChildren = map(getChildren);
+const allTheChildren = map(getChildren);
 ```
 
 Giving a function fewer arguments than it expects is typically called *partial application*. Partially applying a function can remove a lot of boiler plate code. Consider what the above `allTheChildren` function would be with the uncurried `map` from lodash (note the arguments are in a different order):
 
 ```js
-var allTheChildren = function(elements) {
-  return _.map(elements, getChildren);
-};
+const allTheChildren = elements => _.map(elements, getChildren);
 ```
 
 We typically don't define functions that work on arrays, because we can just call `map(getChildren)` inline. Same with `sort`, `filter`, and other higher order functions(Higher order function: A function that takes or returns a function).
@@ -140,59 +124,50 @@ There are [unit tests](https://github.com/DrBoolean/mostly-adequate-guide/tree/m
 Answers are provided with the code in the [repository for this book](https://github.com/DrBoolean/mostly-adequate-guide/tree/master/code/part1_exercises/answers)
 
 ```js
-var _ = require('ramda');
-
+const _ = require('ramda');
 
 // Exercise 1
 //==============
-// Refactor to remove all arguments by partially applying the function.
+// Refactor to remove all arguments by partially applying the function
 
-var words = function(str) {
-  return _.split(' ', str);
-};
+const words = (str) => split(' ', str);
+
 
 // Exercise 1a
 //==============
 // Use map to make a new words fn that works on an array of strings.
 
-var sentences = undefined;
+const sentences = undefined;
 
 
 // Exercise 2
 //==============
-// Refactor to remove all arguments by partially applying the functions.
+// Refactor to remove all arguments by partially applying the functions
 
-var filterQs = function(xs) {
-  return _.filter(function(x){ return match(/q/i, x);  }, xs);
-};
+const filterQs = xs => filter(x => match(/q/i, x), xs);
 
 
 // Exercise 3
 //==============
-// Use the helper function _keepHighest to refactor max to not reference any
-// arguments.
+// Use the helper function _keepHighest to refactor max to not reference any arguments
 
 // LEAVE BE:
-var _keepHighest = function(x,y){ return x >= y ? x : y; };
+const _keepHighest = (x, y) => x >= y ? x : y;
 
 // REFACTOR THIS ONE:
-var max = function(xs) {
-  return _.reduce(function(acc, x){
-    return _keepHighest(acc, x);
-  }, -Infinity, xs);
-};
+const max = xs => reduce((acc, x) => _keepHighest(acc, x), 0, xs);
 
 
 // Bonus 1:
 // ============
-// Wrap array's slice to be functional and curried.
+// wrap array's slice to be functional and curried.
 // //[1,2,3].slice(0, 2)
-var slice = undefined;
+const slice = undefined;
 
 
 // Bonus 2:
 // ============
-// Use slice to define a function "take" that takes n elements from the beginning of the string. Make it curried.
+// use slice to define a function "take" that takes n elements. Make it curried
 // // Result for "Something" with n=4 should be "Some"
-var take = undefined;
+const take = undefined;
 ```
